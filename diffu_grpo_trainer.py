@@ -103,17 +103,17 @@ class DiffuGRPOTrainer(GRPOTrainer):
             per_token_kl = (
                 torch.exp(ref_per_token_logps - per_token_logps) - (ref_per_token_logps - per_token_logps) - 1
             )
-        if self.args.num_oracle_generations is None:
-            self.args.num_oracle_generations = self.args.num_generations // 2
-        front_per_token_logps = per_token_logps[:, :-self.args.num_oracle_generations, :]
-        back_per_token_logps = per_token_logps[:, -self.args.num_oracle_generations:, :]
-        mean_front_logp = (front_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-        mean_back_logp = (back_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+        if self.args.num_ag_generations is None:
+            self.args.num_ag_generations = self.args.num_generations // 2
+        front_per_token_logps = per_token_logps[:, :-self.args.num_ag_generations, :]
+        back_per_token_logps = per_token_logps[:, -self.args.num_ag_generations:, :]
+        mean_front_logp = (front_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+        mean_back_logp = (back_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
         
-        front_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][:-self.args.num_oracle_generations, :]
-        back_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][-self.args.num_oracle_generations:, :]
-        mean_front_old_logp = (front_old_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-        mean_back_old_logp = (back_old_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+        front_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][:-self.args.num_ag_generations, :]
+        back_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][-self.args.num_ag_generations:, :]
+        mean_front_old_logp = (front_old_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+        mean_back_old_logp = (back_old_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
         
         self._metrics["train"]["mean_front_logp"].append(self.accelerator.gather_for_metrics(mean_front_logp).mean().item())
         self._metrics["train"]["mean_back_logp"].append(self.accelerator.gather_for_metrics(mean_back_logp).mean().item())
@@ -128,11 +128,11 @@ class DiffuGRPOTrainer(GRPOTrainer):
         self._metrics["train"]["max_front_old_logp"].append(self.accelerator.gather_for_metrics(front_old_per_token_logps.max()).max().item())
         self._metrics["train"]["max_back_old_logp"].append(self.accelerator.gather_for_metrics(back_old_per_token_logps.max()).max().item())
 
-        front_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][:-self.args.num_oracle_generations,:] if self.beta!=0.0 else None
-        back_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][-self.args.num_oracle_generations:,:] if self.beta!=0.0 else None
+        front_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][:-self.args.num_ag_generations,:] if self.beta!=0.0 else None
+        back_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][-self.args.num_ag_generations:,:] if self.beta!=0.0 else None
         if front_ref_per_token_logps is not None:
-            mean_front_ref_logp = (front_ref_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-            mean_back_ref_logp = (back_ref_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+            mean_front_ref_logp = (front_ref_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+            mean_back_ref_logp = (back_ref_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
             print(f"Step {self._step}: mean_front_logp: {mean_front_logp.item():.4f}, mean_back_logp: {mean_back_logp.item():.4f}, mean_front_old_logp: {mean_front_old_logp.item():.4f}, mean_back_old_logp: {mean_back_old_logp.item():.4f}, mean_front_ref_logp: {mean_front_ref_logp.item():.4f}, mean_back_ref_logp: {mean_back_ref_logp.item():.4f}")
             self._metrics["train"]["mean_front_ref_logp"].append(self.accelerator.gather_for_metrics(mean_front_ref_logp).mean().item())
             self._metrics["train"]["mean_back_ref_logp"].append(self.accelerator.gather_for_metrics(mean_back_ref_logp).mean().item())

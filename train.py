@@ -5,7 +5,7 @@ from trl import TrlParser, ModelConfig
 from peft import LoraConfig
 
 from diffu_grpo_trainer import DiffuGRPOTrainer
-from oracle_diffu_grpo_trainer import OracleDiffuGRPOTrainer
+from ag_grpo_trainer import AGGRPOTrainer
 from diffu_grpo_config import DiffuGRPOConfig
 from reward_func import (
     xmlcount_reward_func,
@@ -128,8 +128,8 @@ def main(grpo_config, model_config):
     
     if grpo_config.diffusion_type == "d1":
         trainer_class = DiffuGRPOTrainer
-    elif grpo_config.diffusion_type == "oracle":
-        trainer_class = OracleDiffuGRPOTrainer
+    elif grpo_config.diffusion_type == "ag_grpo":
+        trainer_class = AGGRPOTrainer
     else:
         raise ValueError(f"Unsupported diffusion type: {grpo_config.diffusion_type}")
     

@@ -387,7 +387,7 @@ class DiffuGRPOConfig(TrainingArguments):
     )
     diffusion_type: str = field(
         default="d1",
-        metadata={"help": "Diffusion type. Choose from ['d1', 'oracle']."},
+        metadata={"help": "Diffusion type. Choose from ['d1', 'ag_grpo']."},
     )
     
     answer_length: Optional[int] = field(
@@ -400,14 +400,14 @@ class DiffuGRPOConfig(TrainingArguments):
         metadata={"help": "Advantage type. Choose from ['default', 'front_seperate']."},
     )
     
-    num_oracle_generations: Optional[int] = field(
+    num_ag_generations: Optional[int] = field(
         default=None,
         metadata={"help": "Number of generations with supervised answer"},
     )
     
-    oracle_block_length: Optional[int] = field(
+    ag_block_length: Optional[int] = field(
         default=None,
-        metadata={"help": "Block length for oracle generation"},
+        metadata={"help": "Block length for AG generation"},
     )
     
     no_answer_padding: bool = field(
@@ -425,9 +425,9 @@ class DiffuGRPOConfig(TrainingArguments):
         metadata={"help": "Number of diffusion steps for answer generation."},
     )
     
-    oracle_beta: Optional[float] = field(
+    ag_beta: Optional[float] = field(
         default=None,
-        metadata={"help": "Beta for oracle generation."},
+        metadata={"help": "Beta for AG generation."},
     )
     
     loss_type: str = field(
@@ -435,9 +435,9 @@ class DiffuGRPOConfig(TrainingArguments):
         metadata={"help": "Loss type. Choose from ['default', 'mean_sequence']."},
     )
     
-    oracle_steps: Optional[int] = field(
+    ag_steps: Optional[int] = field(
         default=None,
-        metadata={"help": "Number of diffusion steps for oracle generation."},
+        metadata={"help": "Number of diffusion steps for AG generation."},
     )
     
     checkpoint_path: Optional[str] = field(

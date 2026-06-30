@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "The official ACL 2026 proceedings BibTeX is not available yet and will be added once released."
+title: "AG-GRPO: Answer-Guided GRPO for Masked Diffusion Language Models"
+authors:
+  - family-names: Kim
+    given-names: Juhyeong
+  - family-names: Kim
+    given-names: Gyunyeop
+  - family-names: Kang
+    given-names: Sangwoo
+year: 2026
+repository-code: "https://github.com/JuHyng/ag_grpo"
+license: "Apache-2.0"

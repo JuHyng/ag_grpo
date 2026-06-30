@@ -1,0 +1,79 @@
+# Public AG-GRPO training config.
+# Command-line arguments in scripts/ may override these values.
+
+# ModelConfig
+use_peft: true
+torch_dtype: bfloat16
+load_in_4bit: true
+model_path: GSAI-ML/LLaDA-8B-Instruct
+attn_implementation: flash_attention_2
+
+lora_r: 128
+lora_alpha: 64
+lora_dropout: 0.05
+peft_task_type: CAUSAL_LM
+
+# TrainingArguments / DiffuGRPOConfig
+seed: 42
+bf16: true
+sync_ref_model: true
+ref_model_sync_steps: 64
+
+adam_beta1: 0.9
+adam_beta2: 0.99
+weight_decay: 0.1
+max_grad_norm: 0.2
+warmup_ratio: 0.0001
+logging_steps: 1
+learning_rate: 3.0e-6
+lr_scheduler_type: constant_with_warmup
+
+use_vllm: false
+vllm_device: auto
+vllm_gpu_memory_utilization: 0.9
+
+num_generations: 6
+per_device_train_batch_size: 6
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 2
+generation_batch_size: 3
+
+num_train_epochs: 10
+max_steps: 2000
+save_steps: 500
+save_strategy: steps
+save_total_limit: 5
+resume_from_checkpoint: false
+
+remove_unused_columns: false
+gradient_checkpointing: false
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+
+# Diffusion and AG-GRPO-specific settings
+max_completion_length: 256
+max_prompt_length: 200
+block_length: 32
+diffusion_steps: 128
+diffusion_type: ag_grpo
+remasking: low_confidence
+random_masking: true
+p_mask_prompt: 0.15
+
+# GRPO objective
+beta: 0.1
+epsilon: 0.5
+num_iterations: 12
+advantage_type: default
+loss_type: default
+
+# Paper terminology: num_ag_generations == G_AG.
+num_ag_generations: 3
+ag_block_length: 256
+no_answer_padding: true
+answer_additional_length: 10
+answer_steps: 16
+
+dataset: kodcode
+run_name: ag_grpo/kodcode
+output_dir: checkpoints/ag_grpo/kodcode

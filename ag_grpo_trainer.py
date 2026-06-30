@@ -34,7 +34,7 @@ if is_peft_available():
 RewardFunc = Union[str, PreTrainedModel, Callable[[list, list], list[float]]]
 
 
-class OracleDiffuGRPOTrainer(GRPOTrainer):
+class AGGRPOTrainer(GRPOTrainer):
     """
     Group Relative Policy Optimization (GRPO) Trainer for Diffusion Language Models.
 
@@ -102,15 +102,15 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         input_ids = input_ids.unsqueeze(0)
         per_token_logps = self._get_per_token_logps(model, input_ids, logits_to_keep, [this_itr_mask_seed])
         
-        front_per_token_logps = per_token_logps[:, :-self.args.num_oracle_generations, :]
-        back_per_token_logps = per_token_logps[:, -self.args.num_oracle_generations:, :]
-        mean_front_logp = (front_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-        mean_back_logp = (back_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+        front_per_token_logps = per_token_logps[:, :-self.args.num_ag_generations, :]
+        back_per_token_logps = per_token_logps[:, -self.args.num_ag_generations:, :]
+        mean_front_logp = (front_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+        mean_back_logp = (back_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
         
-        front_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][:-self.args.num_oracle_generations, :]
-        back_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][-self.args.num_oracle_generations:, :]
-        mean_front_old_logp = (front_old_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-        mean_back_old_logp = (back_old_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+        front_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][:-self.args.num_ag_generations, :]
+        back_old_per_token_logps = inputs["old_per_token_logps"][this_itr_idx][-self.args.num_ag_generations:, :]
+        mean_front_old_logp = (front_old_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+        mean_back_old_logp = (back_old_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
         
         self._metrics["train"]["mean_front_logp"].append(self.accelerator.gather_for_metrics(mean_front_logp).mean().item())
         self._metrics["train"]["mean_back_logp"].append(self.accelerator.gather_for_metrics(mean_back_logp).mean().item())
@@ -121,11 +121,11 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         self._metrics["train"]["min_front_old_logp"].append(self.accelerator.gather_for_metrics(front_old_per_token_logps.min()).min().item())  
         self._metrics["train"]["min_back_old_logp"].append(self.accelerator.gather_for_metrics(back_old_per_token_logps.min()).min().item())
         
-        front_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][:-self.args.num_oracle_generations,:] if self.beta!=0.0 else None
-        back_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][-self.args.num_oracle_generations:,:] if self.beta!=0.0 else None
+        front_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][:-self.args.num_ag_generations,:] if self.beta!=0.0 else None
+        back_ref_per_token_logps = inputs["ref_per_token_logps"][this_itr_idx][-self.args.num_ag_generations:,:] if self.beta!=0.0 else None
         if front_ref_per_token_logps is not None:
-            mean_front_ref_logp = (front_ref_per_token_logps * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-            mean_back_ref_logp = (back_ref_per_token_logps * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+            mean_front_ref_logp = (front_ref_per_token_logps * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+            mean_back_ref_logp = (back_ref_per_token_logps * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
             print(f"Step {self._step}: mean_front_logp: {mean_front_logp.item():.4f}, mean_back_logp: {mean_back_logp.item():.4f}, mean_front_old_logp: {mean_front_old_logp.item():.4f}, mean_back_old_logp: {mean_back_old_logp.item():.4f}, mean_front_ref_logp: {mean_front_ref_logp.item():.4f}, mean_back_ref_logp: {mean_back_ref_logp.item():.4f}")
             self._metrics["train"]["mean_front_ref_logp"].append(self.accelerator.gather_for_metrics(mean_front_ref_logp).mean().item())
             self._metrics["train"]["mean_back_ref_logp"].append(self.accelerator.gather_for_metrics(mean_back_ref_logp).mean().item())
@@ -155,13 +155,13 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         per_token_loss = -torch.min(per_token_loss1, per_token_loss2)
         if self.beta != 0.0:
             # per_token_loss.shape = [1, num_completions, seq_len]
-            if self.args.oracle_beta is not None:
+            if self.args.ag_beta is not None:
                 # Apply different beta for front and back
-                per_token_kl_front = per_token_kl[:, :-self.args.num_oracle_generations, :]
-                per_token_kl_back = per_token_kl[:, -self.args.num_oracle_generations:, :]
-                per_token_loss = per_token_loss + torch.cat([self.beta * per_token_kl_front, self.args.oracle_beta * per_token_kl_back], dim=1)
+                per_token_kl_front = per_token_kl[:, :-self.args.num_ag_generations, :]
+                per_token_kl_back = per_token_kl[:, -self.args.num_ag_generations:, :]
+                per_token_loss = per_token_loss + torch.cat([self.beta * per_token_kl_front, self.args.ag_beta * per_token_kl_back], dim=1)
                 # [DBG]
-                print(f"Step {self._step}: mean_front_kl: {(per_token_kl_front * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum():.4f}, mean_back_kl: {(per_token_kl_back * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum():.4f}")
+                print(f"Step {self._step}: mean_front_kl: {(per_token_kl_front * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum():.4f}, mean_back_kl: {(per_token_kl_back * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum():.4f}")
             else:
                 per_token_loss = per_token_loss + self.beta * per_token_kl
                 
@@ -173,8 +173,8 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
             mean_kl = (per_token_kl * completion_mask).sum() / completion_mask.sum()
             self._metrics[mode]["kl"].append(self.accelerator.gather_for_metrics(mean_kl).mean().item())
 
-            mean_kl_front = (per_token_kl[:,:-self.args.num_oracle_generations] * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-            mean_kl_back = (per_token_kl[:,-self.args.num_oracle_generations:] * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+            mean_kl_front = (per_token_kl[:,:-self.args.num_ag_generations] * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+            mean_kl_back = (per_token_kl[:,-self.args.num_ag_generations:] * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
             self._metrics[mode]["kl_front"].append(self.accelerator.gather_for_metrics(mean_kl_front).mean().item())
             self._metrics[mode]["kl_back"].append(self.accelerator.gather_for_metrics(mean_kl_back).mean().item())
             # print(f"Step {self._step}: mean_kl: {mean_kl.item():.4f}, mean_kl_front: {mean_kl_front.item():.4f}, mean_kl_back: {mean_kl_back.item():.4f}")
@@ -186,8 +186,8 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         )
         
         # DBG
-        front_loss = (per_token_loss[:, :-self.args.num_oracle_generations, :] * completion_mask[:-self.args.num_oracle_generations, :]).sum() / completion_mask[:-self.args.num_oracle_generations, :].sum()
-        back_loss = (per_token_loss[:, self.args.num_oracle_generations:, :] * completion_mask[-self.args.num_oracle_generations:, :]).sum() / completion_mask[-self.args.num_oracle_generations:, :].sum()
+        front_loss = (per_token_loss[:, :-self.args.num_ag_generations, :] * completion_mask[:-self.args.num_ag_generations, :]).sum() / completion_mask[:-self.args.num_ag_generations, :].sum()
+        back_loss = (per_token_loss[:, self.args.num_ag_generations:, :] * completion_mask[-self.args.num_ag_generations:, :]).sum() / completion_mask[-self.args.num_ag_generations:, :].sum()
         self._metrics[mode]["front_loss"].append(self.accelerator.gather_for_metrics(front_loss).mean().item())
         self._metrics[mode]["back_loss"].append(self.accelerator.gather_for_metrics(back_loss).mean().item())
         print(f"Step {self._step}: front_loss: {front_loss.item():.4f}, back_loss: {back_loss.item():.4f}")
@@ -514,10 +514,10 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         steps = self.args.diffusion_steps
         temperature = self.args.temperature or 0.0
         cfg_scale = self.args.cfg_scale
-        num_oracle_generations = self.args.num_oracle_generations or self.num_generations // 2
-        num_base_generations = self.num_generations - num_oracle_generations
-        oracle_block_length = self.args.oracle_block_length or block_length
-        oracle_steps = self.args.oracle_steps or steps
+        num_ag_generations = self.args.num_ag_generations or self.num_generations // 2
+        num_base_generations = self.num_generations - num_ag_generations
+        ag_block_length = self.args.ag_block_length or block_length
+        ag_steps = self.args.ag_steps or steps
 
         prompts = [x["prompt"] for x in inputs]
         prompts_text = [
@@ -660,11 +660,11 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
                 batch_cot_completion_ids = self.generate(
                     model=unwrapped_model,
                     prompt=batch_prompt_ids,
-                    # steps=steps if gen_length!=oracle_block_length else steps-answer_steps,
+                    # steps=steps if gen_length!=ag_block_length else steps-answer_steps,
                     # steps=steps,
-                    steps=oracle_steps,
+                    steps=ag_steps,
                     gen_length=gen_length,
-                    block_length=oracle_block_length,
+                    block_length=ag_block_length,
                     temperature=temperature,
                     cfg_scale=cfg_scale,
                     remasking=self.args.remasking,
@@ -837,8 +837,8 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
 
         advantage_type = self.args.advantage_type
         
-        rewards_front_half = rewards[: num_base_generations]
-        rewards_back_half = rewards[num_base_generations :]
+        rewards_answer_free = rewards[: num_base_generations]
+        rewards_answer_guided = rewards[num_base_generations :]
         
         # Compute grouped-wise rewards
         mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
@@ -866,32 +866,32 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
         # compute advantages separately for front
         elif advantage_type == "front_seperate":
             
-            front_mean_grouped_rewards = rewards_front_half.view(-1, num_base_generations).mean(dim=1)
-            front_mean_grouped_rewards = front_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
-            front_half_advantages = rewards_front_half - front_mean_grouped_rewards
-            back_half_advantages = rewards_back_half - mean_grouped_rewards[num_base_generations:]
+            answer_free_mean_grouped_rewards = rewards_answer_free.view(-1, num_base_generations).mean(dim=1)
+            answer_free_mean_grouped_rewards = answer_free_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
+            answer_free_advantages = rewards_answer_free - answer_free_mean_grouped_rewards
+            answer_guided_advantages = rewards_answer_guided - mean_grouped_rewards[num_base_generations:]
             
-            advantages = torch.cat([front_half_advantages, back_half_advantages], dim=0)
+            advantages = torch.cat([answer_free_advantages, answer_guided_advantages], dim=0)
             advantages = advantages[process_slice]
         
         elif advantage_type == "back_seperate":
-            back_mean_grouped_rewards = rewards_back_half.view(-1, num_base_generations).mean(dim=1)
-            back_mean_grouped_rewards = back_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
-            front_half_advantages = rewards_front_half - mean_grouped_rewards[:num_base_generations]
-            back_half_advantages = rewards_back_half - back_mean_grouped_rewards
+            answer_guided_mean_grouped_rewards = rewards_answer_guided.view(-1, num_base_generations).mean(dim=1)
+            answer_guided_mean_grouped_rewards = answer_guided_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
+            answer_free_advantages = rewards_answer_free - mean_grouped_rewards[:num_base_generations]
+            answer_guided_advantages = rewards_answer_guided - answer_guided_mean_grouped_rewards
             
-            advantages = torch.cat([front_half_advantages, back_half_advantages], dim=0)
+            advantages = torch.cat([answer_free_advantages, answer_guided_advantages], dim=0)
             advantages = advantages[process_slice]
             
         elif advantage_type == "seperate":
-            front_mean_grouped_rewards = rewards_front_half.view(-1, num_base_generations).mean(dim=1)
-            front_mean_grouped_rewards = front_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
-            back_mean_grouped_rewards = rewards_back_half.view(-1, num_base_generations).mean(dim=1)
-            back_mean_grouped_rewards = back_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
-            front_half_advantages = rewards_front_half - front_mean_grouped_rewards
-            back_half_advantages = rewards_back_half - back_mean_grouped_rewards
+            answer_free_mean_grouped_rewards = rewards_answer_free.view(-1, num_base_generations).mean(dim=1)
+            answer_free_mean_grouped_rewards = answer_free_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
+            answer_guided_mean_grouped_rewards = rewards_answer_guided.view(-1, num_base_generations).mean(dim=1)
+            answer_guided_mean_grouped_rewards = answer_guided_mean_grouped_rewards.repeat_interleave(num_base_generations, dim=0)
+            answer_free_advantages = rewards_answer_free - answer_free_mean_grouped_rewards
+            answer_guided_advantages = rewards_answer_guided - answer_guided_mean_grouped_rewards
             
-            advantages = torch.cat([front_half_advantages, back_half_advantages], dim=0)
+            advantages = torch.cat([answer_free_advantages, answer_guided_advantages], dim=0)
             advantages = advantages[process_slice]
 
         # Log the metrics
@@ -912,20 +912,20 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
             # Only calculate mean for samples where this reward function was applied (non-NaN values)
             mean_rewards = torch.nanmean(rewards_per_func[:, i]).item()
             self._metrics[mode][f"rewards/{reward_func_name}"].append(mean_rewards)
-            front_mean_rewards = torch.nanmean(rewards_per_func[: num_base_generations, i]).item()
-            self._metrics[mode][f"rewards/{reward_func_name}_front_half"].append(front_mean_rewards)
-            back_mean_rewards = torch.nanmean(rewards_per_func[num_base_generations :, i]).item()
-            self._metrics[mode][f"rewards/{reward_func_name}_back_half"].append(back_mean_rewards)
+            answer_free_mean_rewards = torch.nanmean(rewards_per_func[: num_base_generations, i]).item()
+            self._metrics[mode][f"rewards/{reward_func_name}_answer_free"].append(answer_free_mean_rewards)
+            answer_guided_mean_rewards = torch.nanmean(rewards_per_func[num_base_generations :, i]).item()
+            self._metrics[mode][f"rewards/{reward_func_name}_answer_guided"].append(answer_guided_mean_rewards)
             
         self._metrics[mode]["reward"].append(rewards.mean().item())
-        self._metrics[mode]["reward_front_half"].append(rewards_front_half.mean().item())
-        self._metrics[mode]["reward_back_half"].append(rewards_back_half.mean().item())
+        self._metrics[mode]["reward_answer_free"].append(rewards_answer_free.mean().item())
+        self._metrics[mode]["reward_answer_guided"].append(rewards_answer_guided.mean().item())
         self._metrics[mode]["reward_std"].append(std_grouped_rewards.mean().item())
-        self._metrics[mode]["reward_front_half_std"].append(
-            rewards_front_half.std().item()
+        self._metrics[mode]["reward_answer_free_std"].append(
+            rewards_answer_free.std().item()
         )
-        self._metrics[mode]["reward_back_half_std"].append(
-            rewards_back_half.std().item()
+        self._metrics[mode]["reward_answer_guided_std"].append(
+            rewards_answer_guided.std().item()
         )
 
         if self.log_completions and self.state.global_step % self.args.logging_steps == 0:
@@ -934,49 +934,49 @@ class OracleDiffuGRPOTrainer(GRPOTrainer):
             advantages_to_log = gather_object(advantages.tolist())
             rewards_to_log = rewards.tolist()
             
-            prompts_front_half = prompts_to_log[: num_base_generations]
-            prompts_back_half = prompts_to_log[num_base_generations :]
+            prompts_answer_free = prompts_to_log[: num_base_generations]
+            prompts_answer_guided = prompts_to_log[num_base_generations :]
             
-            completions_front_half = completions_to_log[: num_base_generations]
-            completions_back_half = completions_to_log[num_base_generations :]
+            completions_answer_free = completions_to_log[: num_base_generations]
+            completions_answer_guided = completions_to_log[num_base_generations :]
             
-            rewards_front_half = rewards_to_log[: num_base_generations]
-            rewards_back_half = rewards_to_log[num_base_generations :]
+            rewards_answer_free = rewards_to_log[: num_base_generations]
+            rewards_answer_guided = rewards_to_log[num_base_generations :]
             
-            advantages_front_half = advantages_to_log[: num_base_generations]
-            advantages_back_half = advantages_to_log[num_base_generations :]
+            advantages_answer_free = advantages_to_log[: num_base_generations]
+            advantages_answer_guided = advantages_to_log[num_base_generations :]
             
             result = {
                 "steps": self.state.global_step,
-                "prompts_front_half": prompts_front_half,
-                "completions_front_half": completions_front_half,
-                "rewards_front_half": rewards_front_half,
-                "advantages_front_half": advantages_front_half,
-                "prompts_back_half": prompts_back_half,
-                "completions_back_half": completions_back_half,
-                "rewards_back_half": rewards_back_half,
-                "advantages_back_half": advantages_back_half,
+                "prompts_answer_free": prompts_answer_free,
+                "completions_answer_free": completions_answer_free,
+                "rewards_answer_free": rewards_answer_free,
+                "advantages_answer_free": advantages_answer_free,
+                "prompts_answer_guided": prompts_answer_guided,
+                "completions_answer_guided": completions_answer_guided,
+                "rewards_answer_guided": rewards_answer_guided,
+                "advantages_answer_guided": advantages_answer_guided,
             }
             
             print(f"Results at step {self.state.global_step}:\n")
             print(f"Prompt:\n{Text(prompts_text[0])}\n")
             
             print_prompt_completions_sample(
-                prompts_front_half,
-                completions_front_half,
-                rewards_front_half,
-                advantages_front_half,
+                prompts_answer_free,
+                completions_answer_free,
+                rewards_answer_free,
+                advantages_answer_free,
                 step=self.state.global_step,
-                is_front_half=True
+                is_answer_free=True
                 )
             
             print_prompt_completions_sample(
-                prompts_back_half,
-                completions_back_half,
-                rewards_back_half,
-                advantages_back_half,
+                prompts_answer_guided,
+                completions_answer_guided,
+                rewards_answer_guided,
+                advantages_answer_guided,
                 step=self.state.global_step,
-                is_front_half=False
+                is_answer_free=False
             )
             
             append_jsonl(f"{self.args.output_dir}/results.jsonl", result)                
@@ -1001,7 +1001,7 @@ if is_rich_available():
 
 def print_prompt_completions_sample(prompts: list[str], completions: list[str], rewards: list[int], 
                                     advantages: list[float],
-                                    step: int, is_front_half: bool) -> None:
+                                    step: int, is_answer_free: bool) -> None:
     
     if not is_rich_available():
         raise ImportError("This feature requires `rich` to be installed. Please install it first: `pip install rich`")
@@ -1019,7 +1019,7 @@ def print_prompt_completions_sample(prompts: list[str], completions: list[str], 
         table.add_row(Text(completion), f"{reward:.2f}", f"{advantage:.2f}")  # Formatting reward to 2 decimal places
         table.add_section()  # Adds a separator between rows
         
-    title = "Step {} - Front Half".format(step) if is_front_half else "Step {} - Back Half".format(step)
+    title = "Step {} - Answer-Free".format(step) if is_answer_free else "Step {} - Answer-Guided".format(step)
     panel = Panel(table, expand=False, title=title, border_style="bold white") 
     console.print(panel)
     
