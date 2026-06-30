@@ -10,33 +10,23 @@ AG-GRPO trains a masked diffusion LM with two rollout conditions for the same pr
 
 **Answer-Free (AF) rollouts** match the test-time setting. The model receives the prompt followed by a fully masked generation span and produces a completion without seeing the answer:
 
-```text
-q + <mask> ... <mask>  ->  reasoning + answer
-```
+<img width="837" height="424" alt="gitfig1" src="https://github.com/user-attachments/assets/55013ad1-b0bb-4357-b02e-680385da9375" />
+
 
 These samples reflect the policy that will be used at inference time, but early in RL training they often receive little useful reward signal because the final answer is wrong.
 
 **Answer-Guided (AG) rollouts** use the ground-truth answer as a temporary suffix anchor. The answer is wrapped as an answer span and padded with a small margin, then fixed at the end of the generation segment while the model restores the masked reasoning prefix:
 
-```text
-q + <mask> ... <mask> + y_tilde  ->  reasoning + y_tilde
-```
-
 The fixed suffix is not allowed to directly determine the reward. After answer-guided reasoning is generated, AG-GRPO removes the anchored suffix and asks the model to re-predict the answer from the generated reasoning:
 
-```text
-q + reasoning + <mask> ... <mask>  ->  reasoning + predicted_answer
-```
+<img width="832" height="410" alt="gitfig2" src="https://github.com/user-attachments/assets/ce649575-ea09-4c9c-9ad4-d13f993cff61" />
+
 
 The final AG completion is therefore scored using a model-predicted answer, not the copied ground-truth suffix. This keeps the reward verifiable while still letting the answer guide the reasoning trajectory during rollout generation.
 
 For each prompt, AG-GRPO groups AF and AG completions together. With `G_AF` answer-free samples and `G_AG` answer-guided samples, all rewards share the same group baseline:
 
-```text
-R_bar = mean({R_AF_1, ..., R_AF_GAF, R_AG_1, ..., R_AG_GAG})
-A_AF_i = R_AF_i - R_bar
-A_AG_j = R_AG_j - R_bar
-```
+<img width="567" height="392" alt="gitfig3" src="https://github.com/user-attachments/assets/2fd71e6c-1b25-449e-9ecd-0cfbfb7efd80" />
 
 This shared baseline is the core transfer mechanism. When AG rollouts obtain stronger rewards, they shape the relative advantages in the same group as AF rollouts, so the policy update contrasts answer-free and answer-guided behavior under shared model parameters. The policy is then optimized with the GRPO clipped objective plus a KL penalty to the reference policy, using the masked diffusion per-token likelihood estimator from the diffu-GRPO line of work.
 
@@ -46,18 +36,20 @@ The released code uses the paper terminology directly: `diffusion_type=ag_grpo` 
 
 AG-GRPO is evaluated on math reasoning, puzzle solving, and code generation:
 
-- GSM8K, MATH-500, and 4x4 Sudoku for exact-match style reasoning evaluation.
-- KodCode for RL training in the code domain.
-- HumanEval and MBPP for pass@1 code-generation evaluation.
-
 The paper uses the same total rollout budget as diffu-GRPO, with `G = 6`, `G_AF = 3`, and `G_AG = 3`. Across the reported settings, AG-GRPO improves over both the pretrained LLaDA-8B-Instruct model and the diffu-GRPO baseline. The gains are especially visible on sparse or constrained-reward tasks such as Sudoku, where answer-guided rollouts provide a stronger training signal early in optimization.
+
+<img width="712" height="256" alt="result1" src="https://github.com/user-attachments/assets/bfb1f984-98ab-463e-ab73-a96995332132" />
+<img width="454" height="159" alt="result_code" src="https://github.com/user-attachments/assets/f135c171-db0d-48dc-881c-dcc91d9c553f" />
+
 
 The analysis in the paper studies two behaviors:
 
 - During answer-guided reasoning, denoising trajectories show that the anchored answer suffix influences restoration of earlier reasoning tokens.
 - AG rewards rise quickly early in training, and the shared group-relative baseline helps transfer that signal to the answer-free policy.
 
-Figure assets from the poster will be added under `assets/` once exported. See `docs/figure_assets.md` for the requested crops.
+<img width="569" height="482" alt="analysis" src="https://github.com/user-attachments/assets/a0109fa2-0a84-4b53-9e29-c6fdc4dfce13" />
+
+Further analysis is reported on paper.
 
 ## Setup
 
