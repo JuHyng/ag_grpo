@@ -2,6 +2,8 @@
 
 Official implementation of **AG-GRPO: Answer-Guided GRPO for Masked Diffusion Language Models**.
 
+[Paper](https://aclanthology.org/2026.acl-long.1724/) | [PDF](https://aclanthology.org/2026.acl-long.1724.pdf)
+
 AG-GRPO asks a simple question: **can ground-truth answers guide rollout generation during training while improving the answer-free policy used at test time?** In standard RLVR, the ground-truth answer is usually used only after generation, as a verifier target. This gives sparse outcome feedback, but it does not help the model produce reasoning that is consistent with the correct answer when early rollouts are weak. Masked diffusion language models make a different strategy possible because they restore masked tokens bidirectionally within a generation span: an answer suffix can guide earlier reasoning tokens during denoising.
 
 ## Method
@@ -122,4 +124,21 @@ kodcode_data/kodcode-9k/train.parquet
 
 ## Citation
 
-The official ACL 2026 proceedings BibTeX is not available yet and will be added once released.
+If you find this work useful, please cite:
+
+```bibtex
+@inproceedings{kim-etal-2026-ag,
+    title = "{AG}-{GRPO}: Answer-Guided {GRPO} for Masked Diffusion Language Models",
+    author = "Kim, Juhyeong  and
+      Kim, Gyunyeop  and
+      Kang, Sangwoo",
+    booktitle = "Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    month = jul,
+    year = "2026",
+    address = "San Diego, California, United States",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2026.acl-long.1724/",
+    doi = "10.18653/v1/2026.acl-long.1724",
+    pages = "37175--37191"
+}
+```

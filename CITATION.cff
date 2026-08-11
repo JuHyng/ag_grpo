@@ -1,6 +1,7 @@
 cff-version: 1.2.0
-message: "The official ACL 2026 proceedings BibTeX is not available yet and will be added once released."
+message: "If you use this software, please cite the paper in preferred-citation."
 title: "AG-GRPO: Answer-Guided GRPO for Masked Diffusion Language Models"
+type: software
 authors:
   - family-names: Kim
     given-names: Juhyeong
@@ -8,6 +9,26 @@ authors:
     given-names: Gyunyeop
   - family-names: Kang
     given-names: Sangwoo
-year: 2026
 repository-code: "https://github.com/JuHyng/ag_grpo"
 license: "Apache-2.0"
+preferred-citation:
+  type: conference-paper
+  title: "AG-GRPO: Answer-Guided GRPO for Masked Diffusion Language Models"
+  authors:
+    - family-names: Kim
+      given-names: Juhyeong
+    - family-names: Kim
+      given-names: Gyunyeop
+    - family-names: Kang
+      given-names: Sangwoo
+  collection-title: "Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)"
+  conference:
+    name: "64th Annual Meeting of the Association for Computational Linguistics"
+  publisher:
+    name: "Association for Computational Linguistics"
+  year: 2026
+  month: 7
+  start: 37175
+  end: 37191
+  doi: "10.18653/v1/2026.acl-long.1724"
+  url: "https://aclanthology.org/2026.acl-long.1724/"
